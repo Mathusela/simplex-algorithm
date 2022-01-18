@@ -3,7 +3,7 @@
 #include <limits>
 #include <tuple>
 #include <string>
-#include<string.h>
+#include <string.h>
 
 template <typename T, int len>
 void print_array(std::array<T, len> arrayIn) {
@@ -87,10 +87,12 @@ auto add_arrays(std::array<t_arrayType, size> arrayIn1, std::array<t_arrayType, 
 }
 
 template <int rowNum, int columnNum>
-auto run_simplex(Table<rowNum, columnNum> &inputTable, std::string varLabels, std::array<int, (int)rowNum> rowLabels) {
-	// Return condition
+auto step_simplex(Table<rowNum, columnNum> &inputTable, std::string varLabels, std::array<int, (int)rowNum> rowLabels) {
+	// Vars
 	auto profitRow = inputTable.get_row(rowNum - 1);
 	auto valueColumn = inputTable.get_column(columnNum - 1);
+	
+	// Return condition
 	int negativeCount = 0;
 	for (auto val : profitRow) negativeCount += val < 0 ? 1 : 0;
 
@@ -130,8 +132,6 @@ auto run_simplex(Table<rowNum, columnNum> &inputTable, std::string varLabels, st
 	inputTable.set_row(minimumPivotIndex, newRow);
 	auto newPivotRow = newRow;
 
-	// auto originalRowLabel = varLabels[rowLabels[minimumPivotIndex]];
-	// auto newRowLabel = varLabels[mostNegativeIndex];
 	rowLabels[minimumPivotIndex] = mostNegativeIndex;
 
 	// Row operations
@@ -146,16 +146,16 @@ auto run_simplex(Table<rowNum, columnNum> &inputTable, std::string varLabels, st
 	}
 
 	// Call recursively
-	return run_simplex(inputTable, varLabels, rowLabels);
+	return step_simplex(inputTable, varLabels, rowLabels);
 }
 
 template <int rowNum, int columnNum>
-auto begin_simplex(Table<rowNum, columnNum> &inputTable, std::string varLabels) {
+auto run_simplex(Table<rowNum, columnNum> &inputTable, std::string varLabels) {
 	std::array<int, rowNum> rowLabels;
 	for (int i=0; i<rowNum; i++) {
 		rowLabels[i] = columnNum - rowNum + i;
 	}
-	return run_simplex<rowNum, columnNum>(inputTable, varLabels, rowLabels);
+	return step_simplex<rowNum, columnNum>(inputTable, varLabels, rowLabels);
 }
 
 int main() {
@@ -168,7 +168,7 @@ int main() {
 												{{-4,3,-2,-3,0,0,0,0,0}}}};
 	table.set_table_data(input);
 
-	print_tuple_array<std::string, float, 9>( begin_simplex<5, 9>(table, "xyzwrstuP") );
+	print_tuple_array<std::string, float, 9>( run_simplex<5, 9>(table, "xyzwrstuP") );
 
 	return 0;
 }
