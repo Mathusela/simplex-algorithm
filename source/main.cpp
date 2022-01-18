@@ -2,10 +2,17 @@
 #include <array>
 #include <limits>
 #include <tuple>
+#include <string>
+#include<string.h>
 
 template <typename T, int len>
 void print_array(std::array<T, len> arrayIn) {
 	for (auto val : arrayIn) std::cout << val << ", "; std::cout << std::endl;
+}
+
+template <typename T, typename F, int len>
+void print_tuple_array(std::array<std::tuple<T, F>, len> arrayIn) {
+	for (auto val : arrayIn) std::cout << "{" << std::get<0>(val) << ":" << std::get<1>(val) << "}" << ", "; std::cout << std::endl;
 }
 
 template <int rowNum, int columnNum>
@@ -80,18 +87,36 @@ auto add_arrays(std::array<t_arrayType, size> arrayIn1, std::array<t_arrayType, 
 }
 
 template <int rowNum, int columnNum>
-auto run_simplex(Table<rowNum, columnNum> &inputTable) {
+auto run_simplex(Table<rowNum, columnNum> &inputTable, std::string varLabels, std::array<int, (int)rowNum> rowLabels) {
 	// Return condition
 	auto profitRow = inputTable.get_row(rowNum - 1);
+	auto valueColumn = inputTable.get_column(columnNum - 1);
 	int negativeCount = 0;
 	for (auto val : profitRow) negativeCount += val < 0 ? 1 : 0;
-	if (negativeCount == 0) return profitRow;
+
+	if (negativeCount == 0) {
+		std::string included = "";
+		std::array<std::tuple<std::string, float>, columnNum> output;
+		for (int i=0; i<rowNum; i++) {
+			auto label = varLabels[rowLabels[i]];
+			auto value = valueColumn[i];
+			output[i] = std::make_tuple(label, value);
+			included += label;
+		}
+		int count = 0;
+		for (int i=0; i<columnNum; i++) {
+			if (included.find(varLabels[i]) == std::string::npos) {
+				output[rowNum + count] = std::make_tuple(varLabels[i], 0.0);
+				count++;
+			}
+		}
+		return output;
+	}
 
 	// Get most negative profit coefficient
 	int mostNegativeIndex = std::get<1>(minimum<float, columnNum>(profitRow));
 
 	// Get pivots
-	auto valueColumn = inputTable.get_column(columnNum - 1);
 	std::array<float, rowNum> pivots;
 	for (int i=0; i<rowNum; i++) {
 		pivots[i] = valueColumn[i] / inputTable.get_coordinate(mostNegativeIndex, i);
@@ -105,6 +130,10 @@ auto run_simplex(Table<rowNum, columnNum> &inputTable) {
 	inputTable.set_row(minimumPivotIndex, newRow);
 	auto newPivotRow = newRow;
 
+	// auto originalRowLabel = varLabels[rowLabels[minimumPivotIndex]];
+	// auto newRowLabel = varLabels[mostNegativeIndex];
+	rowLabels[minimumPivotIndex] = mostNegativeIndex;
+
 	// Row operations
 	for (int i=0; i<rowNum; i++) {
 		if (i == minimumPivotIndex) {
@@ -117,18 +146,29 @@ auto run_simplex(Table<rowNum, columnNum> &inputTable) {
 	}
 
 	// Call recursively
-	return run_simplex(inputTable);
+	return run_simplex(inputTable, varLabels, rowLabels);
+}
+
+template <int rowNum, int columnNum>
+auto begin_simplex(Table<rowNum, columnNum> &inputTable, std::string varLabels) {
+	std::array<int, rowNum> rowLabels;
+	for (int i=0; i<rowNum; i++) {
+		rowLabels[i] = columnNum - rowNum + i;
+	}
+	return run_simplex<rowNum, columnNum>(inputTable, varLabels, rowLabels);
 }
 
 int main() {
 
-	Table<3, 6> table;
-	std::array<std::array<float, 6>, 3> input {{{{1,2,2,1,0,100}}, 
-												{{1,0,4,0,1,40}}, 
-												{{-3,-4,-10,0,0}}}};
+	Table<5, 9> table;
+	std::array<std::array<float, 9>, 5> input {{{{1,4,3,1,1,0,0,0,95}}, 
+												{{2,1,2,3,0,1,0,0,67}}, 
+												{{1,3,2,2,0,0,1,0,75}},
+												{{3,2,1,2,0,0,0,1,72}},
+												{{-4,3,-2,-3,0,0,0,0,0}}}};
 	table.set_table_data(input);
 
-	print_array<float, 6> (run_simplex(table));
+	print_tuple_array<std::string, float, 9>( begin_simplex<5, 9>(table, "xyzwrstuP") );
 
 	return 0;
 }
